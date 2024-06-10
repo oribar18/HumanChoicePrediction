@@ -14,9 +14,9 @@ USER_DECISION = 2
 
 def correct_action(information):
     if information["hotel_value"] >= 8:
-        return 1
+        return (1, 'oracle')
     else:
-        return 0
+        return (0, 'oracle')
 
 
 def random_action(information):
@@ -32,9 +32,9 @@ def user_rational_action(information):
 
 def user_picky(information):
     if information["bot_message"] >= 9:
-        return 1
+        return (1, 'oracle')
     else:
-        return 0
+        return (0, 'oracle')
 
 
 def user_sloppy(information):
@@ -126,3 +126,34 @@ def LLM_based(is_stochastic):
             review_llm_score = proba2go[information["review_id"]]
             return int(review_llm_score >= 0.5)
         return func
+
+
+# Function to load sentiment and confidence scores from a text file
+def load_sentiment_confidence_scores(file_path):
+    sentiment_confidence_scores = {}
+    with open(file_path, 'r', encoding='utf-8') as file:
+        for line in file:
+            parts = line.strip().split('\t')
+            review_id = int(parts[0])
+            sentiment = parts[3]
+            confidence = float(parts[4])
+            sentiment_confidence_scores[review_id] = {
+                "sentiment": sentiment,
+                "confidence": confidence
+            }
+    return sentiment_confidence_scores
+
+
+def sentiment_confidence_based(threshold, fallback_strategy):
+    def func(information):
+        review_id = information["review_id"]
+        sentiment_confidence_scores = load_sentiment_confidence_scores('sentiment_confidence_results.txt')
+        if review_id in sentiment_confidence_scores:
+            sentiment_info = sentiment_confidence_scores[review_id]
+            confidence = sentiment_info["confidence"]
+            sentiment = sentiment_info["sentiment"]
+            if confidence >= threshold:
+                return (1, 'sentimental') if sentiment == "positive" else (0, 'sentimental')
+        # Fallback strategy if confidence is below the threshold
+        return fallback_strategy(information)
+    return func
